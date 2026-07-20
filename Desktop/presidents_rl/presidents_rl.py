@@ -31,32 +31,42 @@ class playerstate:
             if self.cards[i] != 0:
                 curmax = i
         return curmax
-    def check_valid_action(self, action : int, cur_highest : int):
+    def check_valid_action(self, action : int, cur_highest : int, pile_multiplier : int):
         #0-51 = play that card
         #52-65 = play pair with that number
         #66-79 = play three of a kind with that number
         #80-93 = play four of a kind with that number
-        int cardnum = self.get_num_from_action(action)
+        cardnum = self.get_num_from_action(action)
+        amount = self.get_amount_of_cards(cardnum)
+        highest_card = self.get_highest_card_of_num(cardnum)
         if action < 52:
+            if(pile_multiplier != -1 and pile_multiplier != 1):
+                return False
             if(self.cards[action] != 0):
                 return True
         elif action < 66:
-            if(self.get_amount_of_cards(cardnum) > 1):
-                if self.get_highest_card_of_num(cardnum) > cur_highest:
+            if(pile_multiplier != -1 and pile_multiplier != 2):
+                return False
+            if(amount > 1):
+                if highest_card > cur_highest:
                     return True
         elif action < 79:
-            if(self.get_amount_of_cards(cardnum) > 2):
-                if self.get_highest_card_of_num(cardnum) > cur_highest:
+            if(pile_multiplier != -1 and pile_multiplier != 3):
+                return False
+            if(amount > 2):
+                if highest_card > cur_highest:
                     return True
         elif action < 93:
-            if(self.get_amount_of_cards(cardnum) > 3):
-                if self.get_highest_card_of_num(cardnum) > cur_highest: 
+            if(pile_multiplier != -1 and pile_multiplier != 4):
+                return False
+            if(amount > 3):
+                if highest_card > cur_highest:
                     return True
         return False
 
-    def play_action(self,action : int):
+    def play_action(self,action : int, cur_highest : int, pile_multiplier : int):
         cards_played = []
-        if not self.check_valid_action(action):
+        if not self.check_valid_action(action, cur_highest, pile_multiplier):
             print("Invalid action")
         else:
             if action < 52:
@@ -119,6 +129,8 @@ class stateManager:
     def __init__(self):
         self.players = []
         self.board_state = []
+        self.pile_multiplier = -1
+        self.players_left = 6
         self.cards_played = [0 for i in range(52)]
         cards = [i for i in range(52)]
         player_hands = randomize_cards(cards)
@@ -132,22 +144,30 @@ class stateManager:
             self.board_state.append(card)
         self.board_state.append(self.cur_highest_card)
         self.board_state.append(self.last_player)
+        self.board_state.append(self.pile_multiplier)
+        self.board_state.append(self.players_left)
     def play_action(self,action:int):
         if(self.current_player != 0):
             print("Not your turn")
             return
         curplayer = self.players[0]
-        if not curplayer.check_valid_action(action):
+        if not curplayer.check_valid_action(action, self.cur_highest_card, self.pile_multiplier):
             print("Invalid action")
             return
-        cards_played = curplayer.play_action(action)
-
+        cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
+        self.cur_highest_card = max(cards_played)
         for card in cards_played:
             self.cards_played[card] = 1
             self.board_state[card] = 1
         self.last_player = self.current_player
         self.current_player = (self.current_player + 1) % 6
-        self.board_state[53] = 
+        self.board_state[53] = self.cur_highest_card
+        self.board_state[54] = self.last_player
+    def play_one_ai_turn(self):
+
+    def step(self, action: int):
+        self.play_action(action)
+
 
 def create_game():
     #card1,2,3,4,5,6,7,8,9, cur_highest_card, highest_left, current_player, last_player
