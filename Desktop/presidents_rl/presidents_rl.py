@@ -162,10 +162,20 @@ class stateManager:
             self.board_state[card] = 1
         self.last_player = self.current_player
         self.current_player = (self.current_player + 1) % 6
+    def update_board_state(self):
+        for i in range(52):
+            self.board_state[i] = self.cards_played[i]
         self.board_state[53] = self.cur_highest_card
         self.board_state[54] = self.last_player
         self.board_state[55] = self.pile_multiplier
         self.board_state[56] = self.players_left
+    def get_board_state(self):
+        self.update_board_state()
+        return self.board_state
+    def get_card_state(self):
+        return self.players[0].get_state()
+    def get_state(self):
+        return self.get_card_state() + self.get_board_state()
     def reset_stack(self):
         self.cur_highest_card = -1
         self.pile_multiplier = -1
@@ -186,21 +196,18 @@ class stateManager:
         self.cur_highest_card = max(cards_played)
         for card in cards_played:
             self.cards_played[card] = 1
-            self.board_state[card] = 1
         self.last_player = self.current_player
         self.current_player = (self.current_player + 1) % 6
-        self.board_state[53] = self.cur_highest_card
-        self.board_state[54] = self.last_player
-        self.board_state[55] = self.pile_multiplier
-        self.board_state[56] = self.players_left
     def simulate_all_turns(self):
         while self.current_player != 0:
             self.play_one_ai_turn()
+    
     def step(self, action: int):
         self.play_action(action)
         self.simulate_all_turns()
         if(self.last_player == self.current_player):
             self.reset_stack()
+        
 
 def create_game():
     #card1,2,3,4,5,6,7,8,9, cur_highest_card, highest_left, current_player, last_player
