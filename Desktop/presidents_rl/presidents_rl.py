@@ -6,6 +6,8 @@ class playerstate:
         self.cards = [0 for i in range(52)]
         for card in cards:
             self.cards[card] = 1
+    def cards_left(self):
+        return sum(self.cards)
     def get_state(self):
         return self.cards
     def get_num_from_action(action : int):
@@ -164,14 +166,23 @@ class stateManager:
         self.board_state[54] = self.last_player
         self.board_state[55] = self.pile_multiplier
         self.board_state[56] = self.players_left
+    def reset_stack(self):
+        self.cur_highest_card = -1
+        self.pile_multiplier = -1
+        self.last_player = -1
     def play_one_ai_turn(self):
-        #greedy, plays lowest possible card(s) possible
+        #greedy, plays lowest possible card(s) possible   
+        if(self.current_player == self.last_player):
+            #one full cycle of passes
+            self.reset_stack()
         curplayer = self.players[self.current_player]
         action = curplayer.get_best_action(self.cur_highest_card, self.pile_multiplier)
         if(action == -1):
             self.current_player = (self.current_player + 1) % 6
             return
         cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
+        if(curplayer.cards_left() == 0):
+            self.players_left -= 1
         self.cur_highest_card = max(cards_played)
         for card in cards_played:
             self.cards_played[card] = 1
@@ -182,9 +193,14 @@ class stateManager:
         self.board_state[54] = self.last_player
         self.board_state[55] = self.pile_multiplier
         self.board_state[56] = self.players_left
+    def simulate_all_turns(self):
+        while self.current_player != 0:
+            self.play_one_ai_turn()
     def step(self, action: int):
         self.play_action(action)
-
+        self.simulate_all_turns()
+        if(self.last_player == self.current_player):
+            self.reset_stack()
 
 def create_game():
     #card1,2,3,4,5,6,7,8,9, cur_highest_card, highest_left, current_player, last_player
