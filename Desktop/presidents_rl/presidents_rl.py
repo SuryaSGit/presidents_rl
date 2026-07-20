@@ -11,13 +11,13 @@ class playerstate:
     def get_state(self):
         return self.cards
     def get_num_from_action(action : int):
-        if action < 52:
+        if action <= 51:
             return action
-        elif action < 66:
+        elif action <= 64:
             return action - 52
-        elif action < 79:
+        elif action <= 77:
             return action - 66
-        elif action < 93:
+        elif action <= 90:
             return action - 80
         return -1
     def get_amount_of_cards(self, cardnum : int):
@@ -35,30 +35,33 @@ class playerstate:
         return curmax
     def check_valid_action(self, action : int, cur_highest : int, pile_multiplier : int):
         #0-51 = play that card
-        #52-65 = play pair with that number
-        #66-79 = play three of a kind with that number
-        #80-93 = play four of a kind with that number
+        #52-64 = play pair with that number
+        #65-77 = play three of a kind with that number
+        #78-90 = play four of a kind with that number
+        #91 = pass
+        if(action == 91):
+            return True
         cardnum = self.get_num_from_action(action)
         amount = self.get_amount_of_cards(cardnum)
         highest_card = self.get_highest_card_of_num(cardnum)
-        if action < 52:
+        if action <= 51:
             if(pile_multiplier != -1 and pile_multiplier != 1):
                 return False
             if(self.cards[action] != 0):
                 return True
-        elif action < 66:
+        elif action <= 64:
             if(pile_multiplier != -1 and pile_multiplier != 2):
                 return False
             if(amount > 1):
                 if highest_card > cur_highest:
                     return True
-        elif action < 79:
+        elif action <= 77:
             if(pile_multiplier != -1 and pile_multiplier != 3):
                 return False
             if(amount > 2):
                 if highest_card > cur_highest:
                     return True
-        elif action < 93:
+        elif action <= 90:
             if(pile_multiplier != -1 and pile_multiplier != 4):
                 return False
             if(amount > 3):
@@ -71,10 +74,10 @@ class playerstate:
         if not self.check_valid_action(action, cur_highest, pile_multiplier):
             print("Invalid action")
         else:
-            if action < 52:
+            if action <= 51:
                 self.cards[action] = 0
                 cards_played.append(action)
-            if action < 66:
+            elif action <= 64:
                 #keep highest
                 cardnum = self.get_num_from_action(action)
                 to_remove = []
@@ -87,7 +90,7 @@ class playerstate:
                 cards_played.append(to_remove[0])
                 self.cards[to_remove[1]] = 0
                 cards_played.append(to_remove[1])
-            if action < 79:
+            elif action <= 77:
                 cardnum = self.get_num_from_action(action)
                 to_remove = []
                 for i in range(cardnum * 4, cardnum * 4 + 4):
@@ -101,7 +104,7 @@ class playerstate:
                 cards_played.append(to_remove[0])
                 cards_played.append(to_remove[1])
                 cards_played.append(to_remove[2])
-            if action < 93:
+            elif action <= 90:
                 cardnum = self.get_num_from_action(action)
                 for i in range(cardnum * 4, cardnum * 4 + 4):
                     self.cards[i]=0
@@ -180,6 +183,15 @@ class stateManager:
         self.cur_highest_card = -1
         self.pile_multiplier = -1
         self.last_player = -1
+    def update_pile_multiplier(self, action : int):
+        if(action <= 51):
+            self.pile_multiplier = 1
+        elif(action <= 64):
+            self.pile_multiplier = 2
+        elif(action <= 77):
+            self.pile_multiplier = 3
+        else:
+            self.pile_multiplier = 4
     def play_one_ai_turn(self):
         #greedy, plays lowest possible card(s) possible   
         if(self.current_player == self.last_player):
@@ -191,6 +203,8 @@ class stateManager:
             self.current_player = (self.current_player + 1) % 6
             return
         cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
+        if(self.pile_multiplier == -1):
+            self.update_pile_multiplier(action)
         if(curplayer.cards_left() == 0):
             self.players_left -= 1
         self.cur_highest_card = max(cards_played)
@@ -201,12 +215,13 @@ class stateManager:
     def simulate_all_turns(self):
         while self.current_player != 0:
             self.play_one_ai_turn()
-    
+
     def step(self, action: int):
         self.play_action(action)
         self.simulate_all_turns()
         if(self.last_player == self.current_player):
             self.reset_stack()
+    
         
 
 def create_game():
