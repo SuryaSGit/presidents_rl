@@ -105,10 +105,9 @@ class playerstate:
                     self.cards[i]=0
                     cards_played.append(i)
         return cards_played
-
-    def get_lowest_possible_playable(self, cur_highest : int):
-        for i in range(cur_highest + 1, 52):
-            if(self.cards[i] != 0):
+    def get_best_action(self, cur_highest : int, pile_multiplier : int):
+        for i in range(93):
+            if self.check_valid_action(i, cur_highest, pile_multiplier):
                 return i
         return -1
 
@@ -163,8 +162,26 @@ class stateManager:
         self.current_player = (self.current_player + 1) % 6
         self.board_state[53] = self.cur_highest_card
         self.board_state[54] = self.last_player
+        self.board_state[55] = self.pile_multiplier
+        self.board_state[56] = self.players_left
     def play_one_ai_turn(self):
-
+        #greedy, plays lowest possible card(s) possible
+        curplayer = self.players[self.current_player]
+        action = curplayer.get_best_action(self.cur_highest_card, self.pile_multiplier)
+        if(action == -1):
+            self.current_player = (self.current_player + 1) % 6
+            return
+        cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
+        self.cur_highest_card = max(cards_played)
+        for card in cards_played:
+            self.cards_played[card] = 1
+            self.board_state[card] = 1
+        self.last_player = self.current_player
+        self.current_player = (self.current_player + 1) % 6
+        self.board_state[53] = self.cur_highest_card
+        self.board_state[54] = self.last_player
+        self.board_state[55] = self.pile_multiplier
+        self.board_state[56] = self.players_left
     def step(self, action: int):
         self.play_action(action)
 
