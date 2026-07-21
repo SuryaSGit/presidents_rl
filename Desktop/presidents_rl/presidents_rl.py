@@ -122,7 +122,9 @@ class playerstate:
         return -1
 
 
-def randomize_cards(cards : List[int]):
+def randomize_cards(cards : List[int], seed: Optional[int] = None):
+    if seed is not None:
+        random.seed(seed)
     result = [[] for _ in range(6)]
     cur = 0
     while cards:
@@ -137,7 +139,7 @@ def randomize_cards(cards : List[int]):
 class stateManager:
     def __init__(self):
         self.reset()
-    def reset(self):
+    def reset(self, seed: Optional[int] = None):
         self.players = []
         self.board_state = []
         self.pile_multiplier = -1
@@ -146,7 +148,7 @@ class stateManager:
         self.place = -1
         self.cards_played = [0 for i in range(52)]
         cards = [i for i in range(52)]
-        player_hands = randomize_cards(cards)
+        player_hands = randomize_cards(cards, seed)
         #RL Guy is player 0
         for i in range(6):
             self.players.append(playerstate(player_hands[i]))
@@ -265,10 +267,23 @@ class CustomEnv(gym.Env):
     def __init__(self):
         super().__init__()
         self.action_space = gym.spaces.Discrete(92)
-        self.observation_space = gym.spaces.Box(low=0, high=1, shape=(56,), dtype=np.float32)
+        # State layout (108 dims):
+        #   [0:52]   hand cards        -> 0/1
+        #   [52:104] cards played      -> 0/1
+        #   [104]    cur_highest_card  -> -1..51
+        #   [105]    last_player       -> -1..5
+        #   [106]    pile_multiplier   -> -1..4
+        #   [107]    players_left      -> 1..6
+        low = np.concatenate([np.zeros(104), np.array([-1, -1, -1, 1])]).astype(np.int64)
+        high = np.concatenate([np.ones(104), np.array([51, 5, 4, 6])]).astype(np.int64)
+        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.int64)
         self.state_manager = stateManager()
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        self.state_manager.reset()
+        super().reset(seed=seed)
+        self.state_manager.reset(seed)
+        print(len(self.state_manager.get_state()))
+        #for i in range(108):
+            #print(self.state_manager.get_state()[i])
         return self.state_manager.get_state(), {}
     def step(self, action: int):
         return self.state_manager.step(action)
