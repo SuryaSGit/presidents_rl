@@ -35,7 +35,7 @@ class Network(nn.Module):
     def forward(self, x):
         return self.net(x)
     def act(self,obs):
-        obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
+        obs_t = torch.as_tensor(obs, dtype=torch.float32)
         q_values = self(obs_t.unsqueeze(0))
         return q_values
 
@@ -75,8 +75,9 @@ for step in itertools.count():
     episode_reward += reward    
     if terminated:
         obs = env.reset()[0]    
-        episode_reward = 0.0
         rew_buffer.append(episode_reward)
+        episode_reward = 0.0
+
 
     transitions = random.sample(replay_buffer, BATCH_SIZE)
 

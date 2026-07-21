@@ -335,7 +335,7 @@ class CustomEnv(gym.Env):
         return np.random.choice(possible_actions)
     def mask(self,tensor):
         valid_actions = self.state_manager.get_valid_moves()
-        mask = torch.zeros(len(valid_actions),dtype=torch.bool)
+        mask = torch.zeros(92,dtype=torch.bool)
         mask[valid_actions] = True
         flipped_mask = ~mask
         return tensor.masked_fill_(flipped_mask, -float("inf"))
