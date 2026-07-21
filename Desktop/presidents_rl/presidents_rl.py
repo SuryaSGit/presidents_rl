@@ -1,5 +1,9 @@
 from typing import List
 import random
+from typing import Optional
+import numpy as np
+import gymnasium as gym
+from gymnasium.utils.env_checker import check_env
 class playerstate:
     def __init__(self,cards):
         #52 dim vector storing whether or not hand has a certain card.
@@ -10,15 +14,15 @@ class playerstate:
         return sum(self.cards)
     def get_state(self):
         return self.cards
-    def get_num_from_action(action : int):
+    def get_num_from_action(self,action : int):
         if action <= 51:
             return action
         elif action <= 64:
             return action - 52
         elif action <= 77:
-            return action - 66
+            return action - 65
         elif action <= 90:
-            return action - 80
+            return action - 78
         return -1
     def get_amount_of_cards(self, cardnum : int):
         count = 0
@@ -41,15 +45,16 @@ class playerstate:
         #91 = pass
         if(action == 91):
             return True
-        cardnum = self.get_num_from_action(action)
-        amount = self.get_amount_of_cards(cardnum)
-        highest_card = self.get_highest_card_of_num(cardnum)
         if action <= 51:
             if(pile_multiplier != -1 and pile_multiplier != 1):
                 return False
             if(self.cards[action] != 0):
                 return True
-        elif action <= 64:
+            return False
+        cardnum = self.get_num_from_action(action)
+        amount = self.get_amount_of_cards(cardnum)
+        highest_card = self.get_highest_card_of_num(cardnum)
+        if action <= 64:
             if(pile_multiplier != -1 and pile_multiplier != 2):
                 return False
             if(amount > 1):
@@ -118,23 +123,27 @@ class playerstate:
 
 
 def randomize_cards(cards : List[int]):
-    result = []
+    result = [[] for _ in range(6)]
     cur = 0
     while cards:
         card = cards.pop(random.randint(0, len(cards) - 1))
         result[cur].append(card)
         cur += 1
-        if(cur == 7):
+        if(cur == 6):
             cur = 0
     if(len(result) != 6):
         print("Error in randomizing")
     return result
 class stateManager:
     def __init__(self):
+        self.reset()
+    def reset(self):
         self.players = []
         self.board_state = []
         self.pile_multiplier = -1
         self.players_left = 6
+        self.game_over = False
+        self.place = -1
         self.cards_played = [0 for i in range(52)]
         cards = [i for i in range(52)]
         player_hands = randomize_cards(cards)
@@ -151,27 +160,39 @@ class stateManager:
         self.board_state.append(self.pile_multiplier)
         self.board_state.append(self.players_left)
     def play_action(self,action:int):
+        reward = 0
         if(self.current_player != 0):
             print("Not your turn")
-            return
+            return -1
         curplayer = self.players[0]
         if not curplayer.check_valid_action(action, self.cur_highest_card, self.pile_multiplier):
             print("Invalid action")
-            return
+            return -1
         cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
+        if(len(cards_played) == 0):
+            print("No cards played")
+            self.current_player = (self.current_player + 1) % 6
+            return 0
+        if(curplayer.cards_left() == 0):
+            self.players_left -= 1
+            self.game_over = True
+            self.place = self.players_left
+        reward = reward + len(cards_played)
+        self.update_pile_multiplier(action)
         self.cur_highest_card = max(cards_played)
         for card in cards_played:
             self.cards_played[card] = 1
             self.board_state[card] = 1
         self.last_player = self.current_player
         self.current_player = (self.current_player + 1) % 6
+        return reward
     def update_board_state(self):
         for i in range(52):
             self.board_state[i] = self.cards_played[i]
-        self.board_state[53] = self.cur_highest_card
-        self.board_state[54] = self.last_player
-        self.board_state[55] = self.pile_multiplier
-        self.board_state[56] = self.players_left
+        self.board_state[52] = self.cur_highest_card
+        self.board_state[53] = self.last_player
+        self.board_state[54] = self.pile_multiplier
+        self.board_state[55] = self.players_left
     def get_board_state(self):
         self.update_board_state()
         return self.board_state
@@ -199,7 +220,7 @@ class stateManager:
             self.reset_stack()
         curplayer = self.players[self.current_player]
         action = curplayer.get_best_action(self.cur_highest_card, self.pile_multiplier)
-        if(action == -1):
+        if(action == 91):
             self.current_player = (self.current_player + 1) % 6
             return
         cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
@@ -207,6 +228,12 @@ class stateManager:
             self.update_pile_multiplier(action)
         if(curplayer.cards_left() == 0):
             self.players_left -= 1
+            if(self.players_left == 1):
+                self.game_over = True
+        if(len(cards_played) == 0):
+            print("No cards played")
+            self.current_player = (self.current_player + 1) % 6
+            return
         self.cur_highest_card = max(cards_played)
         for card in cards_played:
             self.cards_played[card] = 1
@@ -215,17 +242,41 @@ class stateManager:
     def simulate_all_turns(self):
         while self.current_player != 0:
             self.play_one_ai_turn()
+            if(self.game_over):
+                break
 
     def step(self, action: int):
-        self.play_action(action)
-        self.simulate_all_turns()
-        if(self.last_player == self.current_player):
-            self.reset_stack()
+        reward = self.play_action(action)
+        terminated = False
+        if(self.game_over):
+            reward = reward + self.place
+            terminated = True
+        else:
+            self.simulate_all_turns()
+            if(self.game_over):
+                reward = (reward - 5) - self.players[0].cards_left()
+                terminated = True
+            if(self.last_player == self.current_player):
+                reward += 2
+                self.reset_stack()
+        obs = self.get_state()
+        return obs, reward, terminated, False, {}
+class CustomEnv(gym.Env):
+    def __init__(self):
+        super().__init__()
+        self.action_space = gym.spaces.Discrete(92)
+        self.observation_space = gym.spaces.Box(low=0, high=1, shape=(56,), dtype=np.float32)
+        self.state_manager = stateManager()
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        self.state_manager.reset()
+        return self.state_manager.get_state(), {}
+    def step(self, action: int):
+        return self.state_manager.step(action)
+
     
-        
 
-def create_game():
-    #card1,2,3,4,5,6,7,8,9, cur_highest_card, highest_left, current_player, last_player
-    cards = [i for i in range(52)]
-
-    state = []
+try:
+    check_env(CustomEnv())
+    print("Environment passes all checks!")
+except Exception as e:
+    print(f"Environment has issues: {e}")
