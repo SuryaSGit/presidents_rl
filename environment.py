@@ -86,7 +86,8 @@ class playerstate:
     def play_action(self,action : int, cur_highest : int, pile_multiplier : int):
         cards_played = []
         if not self.check_valid_action(action, cur_highest, pile_multiplier):
-            print("Invalid action")
+            #print("Invalid action")
+            a=1
         else:
             if action <= 51:
                 self.cards[action] = 0
@@ -183,11 +184,11 @@ class stateManager:
             return -1
         curplayer = self.players[0]
         if not curplayer.check_valid_action(action, self.cur_highest_card, self.pile_multiplier):
-            print("Invalid action")
+            #print("Invalid action")
             return -1
         cards_played = curplayer.play_action(action, self.cur_highest_card, self.pile_multiplier)
         if(len(cards_played) == 0):
-            print("No cards played")
+            #print("No cards played")
             self.current_player = (self.current_player + 1) % 6
             return 0
         if(curplayer.cards_left() == 0):
@@ -258,7 +259,7 @@ class stateManager:
             #one full cycle of passes
             self.reset_stack()
         curplayer = self.players[self.current_player]
-        print("Existing Highest Card: " + get_string_from_card(self.cur_highest_card))
+        #print("Existing Highest Card: " + get_string_from_card(self.cur_highest_card))
         action = curplayer.get_best_action(self.cur_highest_card, self.pile_multiplier)
         if(action == 91):
             self.current_player = (self.current_player + 1) % 6
@@ -271,14 +272,14 @@ class stateManager:
             if(self.players_left == 1):
                 self.game_over = True
         if(len(cards_played) == 0):
-            print("No cards played")
+            #print("No cards played")
             self.current_player = (self.current_player + 1) % 6
             return
         self.cur_highest_card = max(cards_played)
-        print("New Highest Card: " + get_string_from_card(self.cur_highest_card))
+        #print("New Highest Card: " + get_string_from_card(self.cur_highest_card))
         for card in cards_played:
             self.cards_played[card] = 1
-            print("Card Played: " + get_string_from_card(card))
+            #print("Card Played: " + get_string_from_card(card))
         self.last_player = self.current_player
         self.current_player = (self.current_player + 1) % 6
     def simulate_all_turns(self):
@@ -321,7 +322,7 @@ class CustomEnv(gym.Env):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
         self.state_manager.reset(seed)
-        print(len(self.state_manager.get_state()))
+        #print(len(self.state_manager.get_state()))
         #for i in range(108):
             #print(self.state_manager.get_state()[i])
         return self.state_manager.get_state(), {}
@@ -338,6 +339,10 @@ class CustomEnv(gym.Env):
         mask[valid_actions] = True
         flipped_mask = ~mask
         return tensor.masked_fill_(flipped_mask, -float("inf"))
+    def getaction(self,tensor):
+        new_tensor = self.mask(tensor)
+        max_q_index = torch.argmax(new_tensor,dim=1)[0]
+        return max_q_index.detach().item()
 
 class GameWrapper:
     def __init__(self):
@@ -360,14 +365,11 @@ class GameWrapper:
         return self.game.get_valid_moves()
 
 
-temp = GameWrapper()
-temp.start_game()
-print("HGHISDHIFHIDSFHISFDJDFIH")
-try:
-    check_env(CustomEnv())
-    print("Environment passes all checks!")
-except Exception as e:
-    print(f"Environment has issues: {e}")
+# try:
+#     check_env(CustomEnv())
+#     print("Environment passes all checks!")
+# except Exception as e:
+#     print(f"Environment has issues: {e}")
 
 gym.register(
     id="gymnasium_env/presidents-rl",

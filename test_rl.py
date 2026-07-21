@@ -5,9 +5,12 @@ import numpy as np
 import gymnasium as gym
 from gymnasium.utils.env_checker import check_env
 import torch
+import environment
 from torch import nn
 from collections import deque
 import itertools
+import torch.nn.functional as F
+
 
 GAMMA = 0.99
 BATCH_SIZE = 32
@@ -49,7 +52,7 @@ optimizer = torch.optim.Adam(online_net.parameters(), lr = 5e-4)
 
 obs =  env.reset()[0]
 for _ in range(MIN_REPLAY_SIZE):
-    action = env.action_space_sample()
+    action = env.unwrapped.action_space_sample()
     new_obs, reward, terminated, truncated, info = env.step(action)
     replay_buffer.append((obs, action, reward, terminated, new_obs))
     obs = new_obs
@@ -62,10 +65,10 @@ for step in itertools.count():
     epsilon = np.interp(step, [0, EPSILON_DECAY], [EPSILON_START, EPSILON_END])
     rnd_sample = random.random()
     if(rnd_sample < epsilon):
-        action = env.action_space_sample()
+        action = env.unwrapped.action_space_sample()
     else:
         q_vals = online_net.act(obs)
-        action = env.getaction(q_vals)
+        action = env.unwrapped.getaction(q_vals)
     new_obs, reward, terminated, truncated, info = env.step(action)
     replay_buffer.append((obs, action, reward, terminated, new_obs))
     obs = new_obs
@@ -97,7 +100,7 @@ for step in itertools.count():
 
     action_q_values = torch.gather(input = q_values, dim = 1, index = actions_t)
 
-    loss = nn.functional_smooth_l1_loss(action_q_values,targets)
+    loss = F.smooth_l1_loss(action_q_values,targets)
 
 
     optimizer.zero_grad()
