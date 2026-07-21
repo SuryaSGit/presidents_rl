@@ -136,6 +136,13 @@ def randomize_cards(cards : List[int], seed: Optional[int] = None):
     if(len(result) != 6):
         print("Error in randomizing")
     return result
+def get_string_from_card(index : int):
+    suits = ["♦️", "♣️", "♥️", "♠️"]
+    ranks = ["3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"]
+    suit = suits[index % 4]
+    rank = ranks[index // 4]
+    return rank + suit
+print(get_string_from_card(0))
 class stateManager:
     def __init__(self):
         self.reset()
