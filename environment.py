@@ -37,6 +37,12 @@ class playerstate:
             if self.cards[i] != 0:
                 curmax = i
         return curmax
+    def get_all_valid_actions(self, cur_highest : int, pile_multiplier : int):
+        valid_actions = []
+        for action in range(92):
+            if self.check_valid_action(action, cur_highest, pile_multiplier):
+                valid_actions.append(action)
+        return valid_actions
     def check_valid_action(self, action : int, cur_highest : int, pile_multiplier : int):
         #0-51 = play that card
         #52-64 = play pair with that number
@@ -46,6 +52,8 @@ class playerstate:
         if(action == 91):
             return True
         if action <= 51:
+            if(action < cur_highest):
+                return False
             if(pile_multiplier != -1 and pile_multiplier != 1):
                 return False
             if(self.cards[action] != 0):
@@ -142,7 +150,6 @@ def get_string_from_card(index : int):
     suit = suits[index % 4]
     rank = ranks[index // 4]
     return rank + suit
-print(get_string_from_card(0))
 class stateManager:
     def __init__(self):
         self.reset()
@@ -209,6 +216,26 @@ class stateManager:
         return self.players[0].get_state()
     def get_state(self):
         return self.get_card_state() + self.get_board_state()
+    def print_cards(self, cards: List[int]):
+        print("Player's Cards:")
+        for i in range(52):
+            if cards[i] == 1:
+                print(get_string_from_card(i) + " ")
+    def print_board(self):
+        print("Cards Played:")
+        for i in range(52):
+            if self.board_state[i] == 1:
+                print(get_string_from_card(i) + " ")
+        if self.cur_highest_card != -1:
+            print("Current highest card: " + get_string_from_card(self.cur_highest_card))
+        else:
+            print("Current highest card: None")
+        print("Last player: " + str(self.last_player))
+        print("Pile multiplier: " + str(self.pile_multiplier))
+        print("Players left: " + str(self.players_left))
+    def print_state(self):
+        self.print_cards(self.get_card_state())
+        self.print_board()
     def reset_stack(self):
         self.cur_highest_card = -1
         self.pile_multiplier = -1
@@ -222,12 +249,15 @@ class stateManager:
             self.pile_multiplier = 3
         else:
             self.pile_multiplier = 4
+    def get_valid_moves(self):
+        return self.players[self.current_player].get_all_valid_actions(self.cur_highest_card, self.pile_multiplier)
     def play_one_ai_turn(self):
         #greedy, plays lowest possible card(s) possible   
         if(self.current_player == self.last_player):
             #one full cycle of passes
             self.reset_stack()
         curplayer = self.players[self.current_player]
+        print("Existing Highest Card: " + get_string_from_card(self.cur_highest_card))
         action = curplayer.get_best_action(self.cur_highest_card, self.pile_multiplier)
         if(action == 91):
             self.current_player = (self.current_player + 1) % 6
@@ -244,8 +274,10 @@ class stateManager:
             self.current_player = (self.current_player + 1) % 6
             return
         self.cur_highest_card = max(cards_played)
+        print("New Highest Card: " + get_string_from_card(self.cur_highest_card))
         for card in cards_played:
             self.cards_played[card] = 1
+            print("Card Played: " + get_string_from_card(card))
         self.last_player = self.current_player
         self.current_player = (self.current_player + 1) % 6
     def simulate_all_turns(self):
@@ -295,8 +327,30 @@ class CustomEnv(gym.Env):
     def step(self, action: int):
         return self.state_manager.step(action)
 
-    
+class GameWrapper:
+    def __init__(self):
+        self.game = stateManager()
+        print("Starting Game State")
+        self.game.print_state()
+    def reset(self):
+        return self.game.reset()
+    def get_move(self):
+        return int(input("Enter your move: "))
+    def start_game(self):
+        while not self.game.game_over:
+            valid_actions = self.get_valid_moves()
+            print(f"Valid actions: {valid_actions}")
+            move = self.get_move()
+            self.game.step(move)
+            self.game.print_state()
+        print("Game Over")
+    def get_valid_moves(self):
+        return self.game.get_valid_moves()
 
+
+temp = GameWrapper()
+temp.start_game()
+print("HGHISDHIFHIDSFHISFDJDFIH")
 try:
     check_env(CustomEnv())
     print("Environment passes all checks!")
