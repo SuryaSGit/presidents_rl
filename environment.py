@@ -4,6 +4,7 @@ from typing import Optional
 import numpy as np
 import gymnasium as gym
 from gymnasium.utils.env_checker import check_env
+import torch
 class playerstate:
     def __init__(self,cards):
         #52 dim vector storing whether or not hand has a certain card.
@@ -326,6 +327,17 @@ class CustomEnv(gym.Env):
         return self.state_manager.get_state(), {}
     def step(self, action: int):
         return self.state_manager.step(action)
+    def action_space_sample(self):
+        possible_actions = self.state_manager.get_valid_moves()
+        if(len(possible_actions) == 0):
+            return 91
+        return np.random.choice(possible_actions)
+    def mask(self,tensor):
+        valid_actions = self.state_manager.get_valid_moves()
+        mask = torch.zeros(len(valid_actions),dtype=torch.bool)
+        mask[valid_actions] = True
+        flipped_mask = ~mask
+        return tensor.masked_fill_(flipped_mask, -float("inf"))
 
 class GameWrapper:
     def __init__(self):
