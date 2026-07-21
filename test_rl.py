@@ -45,6 +45,7 @@ episode_reward = 0.0
 online_net = Network(108,92)
 target_net = Network(108,92)
 target_net.load_state_dict(online_net.state_dict())
+optimizer = torch.optim.Adam(online_net.parameters(), lr = 5e-4)
 
 obs =  env.reset()[0]
 for _ in range(MIN_REPLAY_SIZE):
@@ -88,4 +89,25 @@ for step in itertools.count():
     dones_t = torch.as_tensor(dones,dtype = torch.float32).unsqueeze(-1)
     newobses_t   = torch.as_tensor(newobses,dtype = torch.float32)
 
-    target_q_values 
+    target_q_values = target_net(newobses_t)
+    max_target_q_values = target_q_values.max(dim=1, keepdim = True)[0]
+    targets = rews_t + GAMMA * (1-dones_t) * max_target_q_values
+
+    q_values = online_net(obses_t)
+
+    action_q_values = torch.gather(input = q_values, dim = 1, index = actions_t)
+
+    loss = nn.functional_smooth_l1_loss(action_q_values,targets)
+
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+
+    if step%TARGET_UPDATE_FREQ == 0:
+        target_net.load_state_dict(online_net.state_dict())
+    if(step%1000 == 0):
+        print()
+        print('Step',step)
+        print('Avg_Rew', np.mean(rew_buffer))
